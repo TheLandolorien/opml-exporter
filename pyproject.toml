@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "opml-exporter"
+version = "0.1.0"
+description = "CLI tool to export OPML files for podcasts"
+license = "MIT"
+authors = ["Lando Toothman <25360446+TheLandolorien@users.noreply.github.com>"]
+readme = "README.md"
+packages = [
+  { include = "opml_exporter", "from" = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+
+[tool.black]
+line-length = 100
+
+[tool.pytest.ini_options]
+minversion = "7.2.0"
+pythonpath = "src"
+testpaths = "tests/opml_exporter"
+addopts = "-vv --import-mode=importlib --cov=src/opml_exporter --cov-report term-missing:skip-covered --cov-branch"
+
+[tool.poetry.scripts]
+opml-exporter = "opml_exporter.cli:run"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
