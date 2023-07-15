@@ -1,3 +1,4 @@
+import argparse
 import glob
 import os
 import sqlite3
@@ -51,11 +52,17 @@ def _generate_opml_file(records: typing.List[typing.Dict[str, str]]) -> None:
     ET.ElementTree(element=opml).write("podcasts.opml", encoding="UTF-8", xml_declaration=True)
 
 
-def _get_podcast_data():
+def _get_podcast_data(name: str = None):
     sql_manager = _get_connection()
 
     with sql_manager:
-        result = sql_manager.execute(PODCAST_QUERY)
+        if name:
+            result = sql_manager.execute(
+                f"{PODCAST_QUERY} WHERE ZTITLE = :name",
+                {"name": name},
+            )
+        else:
+            result = sql_manager.execute(PODCAST_QUERY)
 
     records = result.fetchall()
     sql_manager.close()
@@ -63,6 +70,24 @@ def _get_podcast_data():
     return records
 
 
+def _get_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="opml_exporter",
+        description="Export OPML files for podcasts",
+    )
+
+    parser.add_argument("--name", type=str, help="Podcast name")
+
+    return parser
+
+
+def _get_args() -> argparse.Namespace:
+    parser = _get_parser()
+    return parser.parse_args()
+
+
 def run() -> None:
-    records = _get_podcast_data()
+    args = _get_args()
+
+    records = _get_podcast_data(name=args.name)
     _generate_opml_file(records=records)

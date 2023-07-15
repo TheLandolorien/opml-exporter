@@ -2,9 +2,11 @@ import pytest
 import typing
 import uuid
 from unittest.mock import ANY, patch
-
+from collections import namedtuple
 
 from opml_exporter import cli
+
+Args = namedtuple(typename="args", field_names=["name"])
 
 
 @pytest.fixture
@@ -25,6 +27,17 @@ def mock_records() -> typing.List[typing.Dict[str, str]]:
     ]
 
 
+@pytest.fixture
+def mock_args():
+    return Args(name="Dad Pod")
+
+
+@pytest.fixture
+def mock_parser():
+    with patch("opml_exporter.cli.argparse") as mock:
+        yield mock.ArgumentParser.return_value
+
+
 @patch("opml_exporter.cli.glob")
 def test_run_should_raise_if_missing_podcast_db(mock_glob) -> None:
     mock_glob.glob.return_value = "foo"
@@ -38,7 +51,7 @@ def test_run_should_raise_if_missing_podcast_db(mock_glob) -> None:
 
 @patch("opml_exporter.cli.sqlite3")
 @patch("opml_exporter.cli.ET")
-def test_run_should_query_local_apple_podcast_database(
+def test_run_should_query_local_apple_podcast_database_without_options(
     mock_xml,
     mock_sqlite3,
     mock_records,
@@ -83,6 +96,60 @@ def test_run_should_query_local_apple_podcast_database(
             "title": podcast_2["ZTITLE"],
             "xmlUrl": podcast_2["ZFEEDURL"],
             "htmlUrl": podcast_2["ZWEBPAGEURL"],
+        },
+    )
+
+    mock_xml.ElementTree.assert_called_once_with(element=mock_xml.Element.return_value)
+    mock_xml.ElementTree.return_value.write.assert_called_once_with(
+        "podcasts.opml", encoding="UTF-8", xml_declaration=True
+    )
+
+    mock_manager.close.assert_called_once()
+
+
+@patch("opml_exporter.cli.sqlite3")
+@patch("opml_exporter.cli.ET")
+def test_should_query_specific_podcast_given_title_option(
+    mock_xml,
+    mock_sqlite3,
+    mock_args,
+    mock_parser,
+    mock_records,
+) -> None:
+    mock_manager = mock_sqlite3.connect.return_value
+    mock_parser.parse_args.return_value = mock_args
+    podcast = mock_records[0]
+    mock_manager.execute.return_value.fetchall.return_value = [podcast]
+
+    cli.run()
+
+    mock_parser.add_argument.assert_called_once_with("--name", type=str, help="Podcast name")
+    mock_parser.parse_args.assert_called_once()
+
+    mock_sqlite3.connect.assert_called_once_with(database=ANY, uri=True)
+    mock_manager.execute.assert_called_once_with(
+        f"{cli.PODCAST_QUERY} WHERE ZTITLE = :name", {"name": podcast["ZTITLE"]}
+    )
+    mock_manager.execute.return_value.fetchall.assert_called_once()
+
+    mock_xml.Element.assert_called_once_with("opml", attrib={"version": "1.0"})
+    mock_xml.SubElement.assert_any_call(mock_xml.Element.return_value, "head")
+    mock_xml.SubElement.assert_any_call(mock_xml.SubElement.return_value, "title")
+
+    mock_xml.SubElement.assert_any_call(mock_xml.Element.return_value, "body")
+    mock_xml.SubElement.assert_any_call(
+        mock_xml.SubElement.return_value, "outline", attrib={"text": "feeds"}
+    )
+
+    mock_xml.SubElement.assert_any_call(
+        mock_xml.SubElement.return_value,
+        "outline",
+        attrib={
+            "type": "rss",
+            "text": podcast["ZTITLE"],
+            "title": podcast["ZTITLE"],
+            "xmlUrl": podcast["ZFEEDURL"],
+            "htmlUrl": podcast["ZWEBPAGEURL"],
         },
     )
 
