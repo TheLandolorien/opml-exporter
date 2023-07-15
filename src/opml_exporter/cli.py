@@ -1,7 +1,7 @@
 import glob
 import os
 import sqlite3
-
+import typing
 import xml.etree.ElementTree as ET
 
 MACOS_USER_PODCAST_PATH = (
@@ -10,20 +10,24 @@ MACOS_USER_PODCAST_PATH = (
 PODCAST_QUERY = "SELECT ZUUID, ZFEEDURL, ZWEBPAGEURL, ZTITLE FROM ZMTPODCAST"
 
 
-def run() -> None:
+def _get_database_path() -> str:
     try:
         (db_path,) = glob.glob(os.path.expanduser(MACOS_USER_PODCAST_PATH))
     except ValueError as err:
         raise FileNotFoundError("ERROR: No podcast database found") from err
 
+    return db_path
+
+
+def _get_connection() -> sqlite3.Connection:
+    db_path = _get_database_path()
     sql_manager = sqlite3.connect(database=db_path, uri=True)
     sql_manager.row_factory = sqlite3.Row
 
-    with sql_manager:
-        result = sql_manager.execute(PODCAST_QUERY)
+    return sql_manager
 
-    records = result.fetchall()
 
+def _generate_opml_file(records: typing.List[typing.Dict[str, str]]) -> None:
     opml = ET.Element("opml", attrib={"version": "1.0"})
     head = ET.SubElement(opml, "head")
     title = ET.SubElement(head, "title")
@@ -46,4 +50,19 @@ def run() -> None:
 
     ET.ElementTree(element=opml).write("podcasts.opml", encoding="UTF-8", xml_declaration=True)
 
+
+def _get_podcast_data():
+    sql_manager = _get_connection()
+
+    with sql_manager:
+        result = sql_manager.execute(PODCAST_QUERY)
+
+    records = result.fetchall()
     sql_manager.close()
+
+    return records
+
+
+def run() -> None:
+    records = _get_podcast_data()
+    _generate_opml_file(records=records)

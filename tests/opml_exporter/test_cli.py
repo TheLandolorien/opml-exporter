@@ -1,8 +1,7 @@
 import pytest
-from unittest.mock import ANY, patch
-
 import typing
 import uuid
+from unittest.mock import ANY, patch
 
 
 from opml_exporter import cli
