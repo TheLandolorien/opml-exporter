@@ -1,9 +1,10 @@
-import argparse
 import glob
 import os
 import sqlite3
 import typing
 import xml.etree.ElementTree as ET
+
+from opml_exporter.utilities.arg_parser import OPMLArgumentParser
 
 MACOS_USER_PODCAST_PATH = (
     "~/Library/Group Containers/*.groups.com.apple.podcasts/Documents/MTLibrary.sqlite"
@@ -70,24 +71,8 @@ def _get_podcast_data(name: str = None):
     return records
 
 
-def _get_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="opml_exporter",
-        description="Export OPML files for podcasts",
-    )
-
-    parser.add_argument("--name", type=str, help="Podcast name")
-
-    return parser
-
-
-def _get_args() -> argparse.Namespace:
-    parser = _get_parser()
-    return parser.parse_args()
-
-
 def run() -> None:
-    args = _get_args()
+    parser = OPMLArgumentParser()
 
-    records = _get_podcast_data(name=args.name)
+    records = _get_podcast_data(name=parser.args.name)
     _generate_opml_file(records=records)
